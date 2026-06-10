@@ -48,7 +48,7 @@ async def ask_openrouter(messages):
                 "Content-Type": "application/json",
             },
             json={
-                "model": "google/gemma-3-4b-it:free",
+                "model": "nvidia/nemotron-3-8b-chat-4k-instruct:free",
                 "messages": messages,
             },
             timeout=30

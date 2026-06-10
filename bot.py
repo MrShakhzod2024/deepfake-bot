@@ -1,11 +1,11 @@
 import os
 import logging
+import httpx
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
     CallbackQueryHandler, ContextTypes, filters
 )
-import google.generativeai as genai
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -13,14 +13,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-GEMINI_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+OPENROUTER_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel(
-    model_name="gemini-2.0-flash",
-    system_instruction="""Ты образовательный бот DeepfakeGuard по теме Deepfake и кибербезопасности.
+SYSTEM_PROMPT = """Ты образовательный бот DeepfakeGuard по теме Deepfake и кибербезопасности.
 Отвечай только по теме: дипфейки, GAN-сети, BEC-атаки, социальная инженерия, защита компании, клонирование голоса, Phishing Simulations, Zero Trust.
 Ключевые знания:
 - GAN: Генератор создаёт синтетику, Дискриминатор выявляет фейки
@@ -29,9 +25,8 @@ model = genai.GenerativeModel(
 - Признаки дипфейка: артефакты при повороте более 30 градусов, аномалии моргания, стерильный голос
 - Защита: внеканальная верификация, Zero Trust, контрольные фразы, Phishing Simulations
 Отвечай на русском или узбекском языке. Используй эмодзи. Ответы до 400 слов."""
-)
 
-user_chats = {}
+user_histories = {}
 
 QUICK_TOPICS = [
     ("🤖 Что такое Deepfake?", "Что такое Deepfake?"),
@@ -43,6 +38,23 @@ QUICK_TOPICS = [
     ("🎓 Phishing Simulations", "Что такое Phishing Simulations?"),
     ("⚠️ Zero Trust", "Что такое Zero Trust?"),
 ]
+
+async def ask_openrouter(messages):
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "meta-llama/llama-3.1-8b-instruct:free",
+                "messages": messages,
+            },
+            timeout=30
+        )
+        data = response.json()
+        return data["choices"][0]["message"]["content"]
 
 def get_main_keyboard():
     keyboard = []
@@ -56,7 +68,7 @@ def get_main_keyboard():
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    user_chats[user_id] = model.start_chat(history=[])
+    user_histories[user_id] = []
     await update.message.reply_text(
         "👋 *Привет! Я DeepfakeGuard* — образовательный бот по кибербезопасности.\n\n"
         "Помогу разобраться в:\n"
@@ -71,7 +83,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    user_chats[user_id] = model.start_chat(history=[])
+    user_histories[user_id] = []
     await update.message.reply_text("🗑 История очищена!", reply_markup=get_main_keyboard())
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -79,7 +91,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     if query.data == "clear":
-        user_chats[user_id] = model.start_chat(history=[])
+        user_histories[user_id] = []
         await query.message.reply_text("🗑 История очищена!", reply_markup=get_main_keyboard())
         return
     if query.data.startswith("topic_"):
@@ -92,12 +104,14 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await process_question(update.message, user_id, update.message.text.strip())
 
 async def process_question(message, user_id, question):
-    if user_id not in user_chats:
-        user_chats[user_id] = model.start_chat(history=[])
+    if user_id not in user_histories:
+        user_histories[user_id] = []
     try:
         await message.chat.send_action("typing")
-        response = user_chats[user_id].send_message(question)
-        answer = response.text
+        user_histories[user_id].append({"role": "user", "content": question})
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}] + user_histories[user_id][-10:]
+        answer = await ask_openrouter(messages)
+        user_histories[user_id].append({"role": "assistant", "content": answer})
         keyboard = InlineKeyboardMarkup([[
             InlineKeyboardButton("📋 Все темы", callback_data="topic_0"),
             InlineKeyboardButton("🗑 Очистить", callback_data="clear")
@@ -118,3 +132,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+

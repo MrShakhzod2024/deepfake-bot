@@ -54,6 +54,7 @@ async def ask_openrouter(messages):
             timeout=30
         )
         data = response.json()
+        logger.info(f"OpenRouter response: {data}")
         return data["choices"][0]["message"]["content"]
 
 def get_main_keyboard():

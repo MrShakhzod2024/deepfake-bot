@@ -13,11 +13,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-with open(".env") as f:
-    for line in f:
-        if "=" in line:
-            k, v = line.strip().split("=", 1)
-            os.environ[k] = v
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.environ.get("ANTHROPIC_API_KEY")

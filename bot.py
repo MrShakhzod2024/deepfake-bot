@@ -19,7 +19,7 @@ GEMINI_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",
+    model_name="gemini-2.0-flash",
     system_instruction="""Ты образовательный бот DeepfakeGuard по теме Deepfake и кибербезопасности.
 Отвечай только по теме: дипфейки, GAN-сети, BEC-атаки, социальная инженерия, защита компании, клонирование голоса, Phishing Simulations, Zero Trust.
 Ключевые знания:

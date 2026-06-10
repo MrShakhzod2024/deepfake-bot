@@ -48,7 +48,7 @@ async def ask_openrouter(messages):
                 "Content-Type": "application/json",
             },
             json={
-                "model": "mistralai/mistral-7b-instruct:free",
+                "model": "deepseek/deepseek-r1:free",
                 "messages": messages,
             },
             timeout=30

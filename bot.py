@@ -48,7 +48,7 @@ async def ask_openrouter(messages):
                 "Content-Type": "application/json",
             },
             json={
-                "model": "deepseek/deepseek-r1:free",
+                "model": "google/gemma-3-4b-it:free",
                 "messages": messages,
             },
             timeout=30
